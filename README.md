@@ -1,5 +1,4 @@
-# Armstrong Service
-
+# Armstrong Service https://travis-ci.org/ravinikam/drools-spring-gradle-example.svg?branch=master
 This is a simple Drools rule example using Spring boot REST API's. 
 Dependency details can be found in build.gradle file. 
 Cucumber BDD is used for unit and rest level testing.
