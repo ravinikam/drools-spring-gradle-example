@@ -1,0 +1,86 @@
+# API documentation for Armstrong service
+# Use swagger editor to see documentation from this yaml
+# Go to http://editor.swagger.io/#/ or local editor
+# File -> Import a File -> Browse -> <select this file> -> import
+swagger: '2.0'
+
+################################################################################
+#                              API Information                                 #
+################################################################################
+info:
+  title: Armstrong Service API
+  description: |
+    Analyzes a given integer and determines whether or not it is an Armstrong
+    number.  An Armstrong number is an n-digit number that is equal to the sum
+    of the n'th powers of its digits. E.g. 153 = 1^3 + 5^3 + 3^3
+
+  version: "0.0.1"
+
+################################################################################
+#                              Parameters                                      #
+################################################################################
+parameters:
+  armstrongCandidate:
+    name: armstrongCandidate
+    in: path
+    description: Integer to perform Armstrong validation on.
+    required: true
+    type: integer
+
+################################################################################
+#                              Paths                                           #
+################################################################################
+paths:
+
+  /isArmstrong/{armstrongCandidate}:
+    # This is an HTTP operation
+    get:
+      summary: Checks if a number is an Armstrong number.
+      # Describe this verb here. Note: you can use markdown
+      description: Returns true if the candidate is an Armstrong number, false
+                   if not.
+      produces:
+        - application/json
+      operationId: isArmstrong
+      # This is array of GET operation parameters:
+      parameters:
+         # An example parameter that is in query and is required
+         - $ref: '#/parameters/armstrongCandidate'
+      # Expected responses for this operation:
+      responses:
+        # Response code
+        200:
+          description: Successful response returns true or false.
+          # A schema describing your response object.
+          # Use JSON Schema format
+          schema:
+           $ref: '#/definitions/ArmstrongResponse'
+        400:
+          description: Something other than an integer was sent for Armstrong
+                       validation.
+
+################################################################################
+#                              Definitions                                     #
+################################################################################
+definitions:
+  armstrongCandidate:
+    type : object
+    description: A data model to hold result and number.
+    properties:
+      number:
+        type: integer
+        description: candidate to perform Armstrong validation on.
+      isArmstrong:
+        type: boolean
+        description: holds result
+      summation:
+        type: integer
+        description: sum of n'th power of digits
+
+  ArmstrongResponse:
+    type: object
+    description: Armstrong service response
+    properties:
+      validationStatus:
+        type: boolean
+        description: True if a number is an Armstrong number, false if not.

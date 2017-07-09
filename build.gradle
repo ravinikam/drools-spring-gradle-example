@@ -1,0 +1,216 @@
+/*
+ * Copyright 2017 Feb29 Company. All rights reserved.
+ */
+buildscript {
+
+    ext {
+        cucumberVersion = "1.2.+"
+        droolsVersion = "7.0.0.Final"
+        javaxValidationVersion = "1.1.0.Final"
+        jfrogArtifactoryVersion = "4.4.18"
+        powerMockVersion = "1.6.+"
+        sonarqubeVersion = "2.5"
+        springBootVersion = "1.5.+"
+        springFoxVersion = "2.6.+"
+        swaggerVersion = "1.5.+"
+    }
+
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:${jfrogArtifactoryVersion}"
+        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:${sonarqubeVersion}"
+    }
+
+    repositories {
+        mavenCentral()
+
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+}
+
+apply plugin: "com.jfrog.artifactory"
+apply plugin: "idea"
+apply plugin: "maven-publish"
+apply plugin: "org.sonarqube"
+
+group "com.feb29.armstrong"
+
+allprojects {
+    apply plugin: "java"
+    apply plugin: "jacoco"
+
+    version "1.0.0-SNAPSHOT"
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    tasks.withType(JavaCompile) {
+        options.compilerArgs += "-Xlint"
+        options.compilerArgs += "-Werror"
+    }
+
+    test.finalizedBy jacocoTestReport
+    test {
+        systemProperty "cucumber.options", System.properties.getProperty("cucumber.options") ?: "--tags ~@wip -p pretty"
+
+        testLogging {
+            events "standardOut", "standardError"
+            exceptionFormat "full"
+        }
+    }
+
+    jacocoTestReport {
+        reports {
+            html.enabled = true
+        }
+    }
+
+    repositories {
+
+        mavenCentral()
+    }
+
+}
+
+
+task armstrongServiceTar(type: Tar, dependsOn: ":armstrong-ws:assemble") {
+    baseName = "ArmstrongService"
+
+    from("${project(':armstrong-impl').projectDir}/src/main/resources")
+    from("${project(':armstrong-ws').buildDir}/libs/") {
+        include("*.war")
+    }
+
+    into baseName
+    destinationDir = buildDir
+    extension = "tgz"
+    compression = Compression.GZIP
+}
+
+publishing {
+    publications {
+        armstrongInterface(MavenPublication) {
+            artifactId "armstrong"
+            version = "v1"
+            artifact "armstrong.yaml"
+        }
+
+        armstrongService(MavenPublication) {
+            artifactId "ArmstrongService"
+            version "$project.version"
+            artifact(armstrongServiceTar)
+        }
+    }
+}
+
+task interfacePublication(dependsOn: "generatePomFileForArmstrongInterfacePublication") {
+    doLast {
+        artifactoryPublish {
+            doFirst {
+                publications(publishing.publications.armstrongInterface)
+                clientConfig.publisher.repoKey = "libs-release-local"
+            }
+        }
+    }
+}
+
+task servicePublication(dependsOn: ["armstrongServiceTar", "generatePomFileForArmstrongServicePublication"]) {
+    doLast {
+        artifactoryPublish {
+            doFirst {
+                publications(publishing.publications.armstrongService)
+                clientConfig.publisher.repoKey = "libs-snapshot-local"
+            }
+        }
+    }
+}
+
+artifactory {
+    contextUrl = project.properties["artifactory_contextUrl"] ?: "Artifactory URL not set"
+    publish {
+        repository {
+            username = project.properties["artifactory_user"] ?: "Artifactory User"
+            password = project.properties["artifactory_password"] ?: "Artifactory Password"
+            maven = true
+        }
+        defaults {
+            publishArtifacts = true
+            publishPom = true //Publish generated POM files to Artifactory (true by default)
+            publishIvy = false //Publish generated Ivy descriptor files to Artifactory (true by default)
+            properties {
+                // This adds a property of content-type to each yaml artifact published with the value of
+                // application/yaml.  This is necessary so that when doing a get on the artifact url directly, the
+                // artifactory server will set the content-type correctly.
+                all "com.feb29.armstrong:*:*:*@yaml", "artifactory.content-type": "application/yaml"
+            }
+        }
+    }
+}
+
+sonarqube {
+    properties {
+        property "sonar.exclusions", "**/model/**,**/api/Armstrong.java,**/ws/ArmstrongController.java"
+    }
+}
+
+project.tasks["sonarqube"].doLast {
+    println "Sonar Report link : " + buildDir + "/sonar/issues-report/issues-report.html"
+}
+
+project(":armstrong-api") {
+    dependencies {
+        compile("io.swagger:swagger-annotations:${swaggerVersion}")
+        compile("io.springfox:springfox-swagger2:${springFoxVersion}")
+        compile("javax.validation:validation-api:${javaxValidationVersion}")
+    }
+}
+
+
+project(":armstrong-impl") {
+
+    dependencies {
+        compile project(":armstrong-api")
+
+        compile("org.kie:kie-api:$droolsVersion")
+        compile("org.drools:drools-core:$droolsVersion")
+        compile("org.drools:drools-compiler:$droolsVersion")
+        compile("org.springframework.boot:spring-boot-starter:$springBootVersion")
+
+        testCompile("info.cukes:cucumber-java8:${cucumberVersion}")
+        testCompile("info.cukes:cucumber-junit:${cucumberVersion}")
+        testCompile("info.cukes:cucumber-spring:${cucumberVersion}")
+        testCompile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    }
+}
+
+project(":armstrong-ws") {
+    apply plugin: "org.springframework.boot"
+
+    apply plugin: "org.springframework.boot"
+
+    bootRepackage {
+        classifier = "boot"
+    }
+
+
+    dependencies {
+        compile project(":armstrong-api")
+        compile project(":armstrong-impl")
+
+        compile("io.swagger:swagger-annotations:${swaggerVersion}")
+        compile("io.springfox:springfox-swagger2:${springFoxVersion}")
+        compile("org.springframework.boot:spring-boot-starter-web")
+
+        runtime("io.springfox:springfox-swagger-ui:${springFoxVersion}")
+        runtime("org.springframework.boot:spring-boot-starter-actuator")
+
+        testCompile("info.cukes:cucumber-java8:${cucumberVersion}")
+        testCompile("info.cukes:cucumber-junit:${cucumberVersion}")
+        testCompile("info.cukes:cucumber-spring:${cucumberVersion}")
+        testCompile("org.springframework.boot:spring-boot-starter-test")
+        testCompile("org.powermock:powermock-api-mockito:${powerMockVersion}")
+        testCompile("org.powermock:powermock-module-junit4:${powerMockVersion}")
+    }
+}

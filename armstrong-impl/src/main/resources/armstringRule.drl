@@ -1,0 +1,11 @@
+package com.feb29.armstrong
+
+import com.feb29.armstrong.model.ArmstrongCandidate
+
+rule "Is number armstrong"
+when
+    $a : ArmstrongCandidate(number > 1, summation == number )
+then
+    System.out.println("Sum is =>" + $a.getSummation());
+    $a.setIsArmstrong(true);
+end
