@@ -19,4 +19,4 @@ of the n'th powers of its digits. E.g. 153 = 1^3 + 5^3 + 3^3*
     - ```java -jar armstrong-ws/build/libs/armstrong.1.0.0.SNAPSHOT-boot.jar``` *options*
     - You can right click ```ArmstrongApplication.java``` class from armstrong-ws module and hit
 ```Run ArmstrongApplication``` in IDE.
-- You can view the api documentation on swagger-ui by pointing to ```http://localhost:8080/<context-root>/api``
+- You can view the api documentation on swagger-ui by pointing to ```http://localhost:8080/<context-root>/api```
